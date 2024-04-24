@@ -1,0 +1,21 @@
+kind: BuildConfig
+apiVersion: build.openshift.io/v1
+metadata:
+  name: java-sample
+  namespace: sandbox
+spec:
+  source:
+    type: Git
+    git:
+      uri: 'https://github.com/RutvikPanchal/JavaSample.git'
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: src/main/docker/Dockerfile.jvm
+  output:
+    to:
+      kind: DockerImage
+      name: >-
+        nexus-docker-https-sandbox.apps.rosa-tlcj5.ynms.p1.openshiftapps.com/java-sample:latest
+    pushSecret:
+      name: nexus-docker

@@ -1,0 +1,232 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: s2i-build-scan-deploy
+  namespace: sandbox
+spec:
+  params:
+    - default: 'https://github.com/RutvikPanchal/JavaSample'
+      description: git repository url to checkout the source code from
+      name: git_url
+      type: string
+    - default: master
+      description: repository revision to checkout
+      name: revision
+      type: string
+    - default: 'true'
+      description: set to true to skip image-check stage
+      name: skip_image_check
+      type: string
+  tasks:
+    - name: git-clone
+      params:
+        - name: url
+          value: $(params.git_url)
+        - name: revision
+          value: $(params.revision)
+        - name: refspec
+          value: ''
+        - name: submodules
+          value: 'true'
+        - name: depth
+          value: '1'
+        - name: sslVerify
+          value: 'true'
+        - name: crtFileName
+          value: ca-bundle.crt
+        - name: subdirectory
+          value: ''
+        - name: sparseCheckoutDirectories
+          value: ''
+        - name: deleteExisting
+          value: 'true'
+        - name: httpProxy
+          value: ''
+        - name: httpsProxy
+          value: ''
+        - name: noProxy
+          value: ''
+        - name: verbose
+          value: 'true'
+        - name: gitInitImage
+          value: >-
+            registry.redhat.io/openshift-pipelines/pipelines-git-init-rhel8@sha256:fb10f18e6b984584c114a30a5201a0426820d292e9efc982b2cdfed71a2a6930
+        - name: userHome
+          value: /home/git
+      taskRef:
+        kind: ClusterTask
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: workspace
+    - name: maven
+      params:
+        - name: MAVEN_IMAGE
+          value: >-
+            image-registry.openshift-image-registry.svc:5000/openshift/java:openjdk-11-ubi8
+        - name: GOALS
+          value:
+            - package
+        - name: MAVEN_MIRROR_URL
+          value: >-
+            https://nexus-sandbox.apps.rosa-tlcj5.ynms.p1.openshiftapps.com/repository/maven-public
+        - name: SERVER_USER
+          value: ''
+        - name: SERVER_PASSWORD
+          value: ''
+        - name: PROXY_USER
+          value: ''
+        - name: PROXY_PASSWORD
+          value: ''
+        - name: PROXY_PORT
+          value: ''
+        - name: PROXY_HOST
+          value: ''
+        - name: PROXY_NON_PROXY_HOSTS
+          value: ''
+        - name: PROXY_PROTOCOL
+          value: http
+        - name: CONTEXT_DIR
+          value: .
+      runAfter:
+        - git-clone
+      taskRef:
+        kind: ClusterTask
+        name: maven
+      workspaces:
+        - name: source
+          workspace: workspace
+        - name: maven-settings
+          workspace: workspace
+    - name: add-image-stream
+      params:
+        - name: SCRIPT
+          value: oc apply -f openshift/ImageStream.yaml
+        - name: VERSION
+          value: latest
+      runAfter:
+        - maven
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+      workspaces:
+        - name: manifest-dir
+          workspace: workspace
+    - name: add-build-config
+      params:
+        - name: SCRIPT
+          value: oc apply -f openshift/BuildConfig.yaml
+        - name: VERSION
+          value: latest
+      runAfter:
+        - maven
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+      workspaces:
+        - name: manifest-dir
+          workspace: workspace
+    - name: deployment-check
+      params:
+        - name: rox_central_endpoint
+          value: roxsecrets
+        - name: rox_api_token
+          value: roxsecrets
+        - name: rox_image
+          value: 'quay.io/stackrox-io/roxctl:3.71.0'
+        - name: deployment
+          value: $(workspaces.source.path)/openshift/DeploymentConfig.yaml
+        - name: output_format
+          value: table
+        - name: insecure-skip-tls-verify
+          value: 'true'
+      runAfter:
+        - maven
+      taskRef:
+        kind: Task
+        name: rhacs-deployment-check
+      workspaces:
+        - name: source
+          workspace: workspace
+    - name: add-deployment-config
+      params:
+        - name: SCRIPT
+          value: oc apply -f openshift/DeploymentConfig.yaml
+        - name: VERSION
+          value: latest
+      runAfter:
+        - deployment-check
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+      workspaces:
+        - name: manifest-dir
+          workspace: workspace
+    - name: build
+      params:
+        - name: SCRIPT
+          value: oc start-build bc/java-sample --from-dir=. --follow
+        - name: VERSION
+          value: latest
+      runAfter:
+        - add-build-config
+        - add-deployment-config
+        - add-image-stream
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+      workspaces:
+        - name: manifest-dir
+          workspace: workspace
+    - name: deploy
+      params:
+        - name: SCRIPT
+          value: oc rollout latest dc/java-sample
+        - name: VERSION
+          value: latest
+      runAfter:
+        - image-check
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+    - name: image-scan
+      params:
+        - name: rox_central_endpoint
+          value: roxsecrets
+        - name: rox_api_token
+          value: roxsecrets
+        - name: image
+          value: >-
+            nexus-docker-https-sandbox.apps.rosa-tlcj5.ynms.p1.openshiftapps.com/java-sample:latest
+        - name: output_format
+          value: table
+        - name: insecure-skip-tls-verify
+          value: 'true'
+      runAfter:
+        - build
+      taskRef:
+        kind: Task
+        name: stackrox-image-scan
+    - name: image-check
+      params:
+        - name: rox_central_endpoint
+          value: roxsecrets
+        - name: rox_api_token
+          value: roxsecrets
+        - name: image
+          value: >-
+            nexus-docker-https-sandbox.apps.rosa-tlcj5.ynms.p1.openshiftapps.com/java-sample:latest
+        - name: insecure-skip-tls-verify
+          value: 'true'
+      runAfter:
+        - image-scan
+      taskRef:
+        kind: Task
+        name: stackrox-image-check
+      when:
+        - input: $(params.skip_image_check)
+          operator: notin
+          values:
+            - 'true'
+  workspaces:
+    - name: workspace
