@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: container
-          image: java-sample:latest
+          image: image-registry.openshift-image-registry.svc:5000/sandbox/java-sample:latest
           ports:
             - containerPort: 8080
               protocol: TCP
