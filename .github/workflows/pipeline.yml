@@ -9,10 +9,8 @@ jobs:
   trigger-tekton-pipeline:
     runs-on: ubuntu-latest
     steps:
-    - name: Set up OpenShift CLI
-      uses: redhat-actions/oc-setup@v1
-      with:
-        version: 'latest'
+    - name: Setup Openshift CLI
+      uses: redhat-actions/oc-installer@v1
 
     - name: Login to Openshift
       run: oc login ${{ secrets.OCP_API_URL }} -u ${{ secrets.OCP_API_URL }} -p ${{ secrets.OCP_API_URL }}
