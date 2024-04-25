@@ -13,7 +13,7 @@ jobs:
       uses: redhat-actions/oc-installer@v1
 
     - name: Login to Openshift
-      run: oc login ${{ secrets.OCP_API_URL }} -u ${{ secrets.OCP_API_URL }} -p ${{ secrets.OCP_API_URL }}
+      run: oc login ${{ secrets.OCP_API_URL }} -u ${{ secrets.OCP_API_URL }} -p ${{ secrets.OCP_API_URL }} --insecure-skip-tls-verify
 
     - name: Create roxsecrets
       run: oc create secret generic roxsecrets -n sandbox --dry-run=client -o yaml --from-literal=rox_api_token=${{ secrets.RHACS_API_TOKEN }} --from-literal=rox_central_endpoint=${{ secrets.RHACS_API_URL }} | oc apply -f -
