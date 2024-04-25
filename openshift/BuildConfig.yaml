@@ -14,5 +14,8 @@ spec:
       dockerfilePath: src/main/docker/Dockerfile.jvm
   output:
     to:
-      kind: ImageStreamTag
-      name: java-sample:latest
+      kind: DockerImage
+      name: >-
+        ghcr.io/rutvik-nvs/java-sample:latest
+    pushSecret:
+      name: github-package

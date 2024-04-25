@@ -12,9 +12,11 @@ spec:
       labels:
         app: java-sample
     spec:
+      imagePullSecrets:
+        - name: github-package
       containers:
         - name: container
-          image: image-registry.openshift-image-registry.svc:5000/sandbox/java-sample:latest
+          image: ghcr.io/rutvik-nvs/java-sample:latest
           ports:
             - containerPort: 8080
               protocol: TCP
