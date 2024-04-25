@@ -14,8 +14,7 @@ spec:
     spec:
       containers:
         - name: container
-          image: >-
-            nexus-docker-https-sandbox.apps.rosa-tlcj5.ynms.p1.openshiftapps.com/java-sample:latest
+          image: java-sample:latest
           ports:
             - containerPort: 8080
               protocol: TCP

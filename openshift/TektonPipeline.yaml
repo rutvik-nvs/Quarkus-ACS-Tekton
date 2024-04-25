@@ -5,7 +5,7 @@ metadata:
   namespace: sandbox
 spec:
   params:
-    - default: 'https://github.com/RutvikPanchal/JavaSample'
+    - default: 'https://github.com/rutvik-nvs/Quarkus-ACS-Tekton.git'
       description: git repository url to checkout the source code from
       name: git_url
       type: string
@@ -13,9 +13,13 @@ spec:
       description: repository revision to checkout
       name: revision
       type: string
-    - default: 'true'
+    - default: 'false'
       description: set to true to skip image-check stage
       name: skip_image_check
+      type: string
+    - name: acs_api_token
+      type: string
+    - name: acs_api_url
       type: string
   tasks:
     - name: git-clone
@@ -67,9 +71,6 @@ spec:
         - name: GOALS
           value:
             - package
-        - name: MAVEN_MIRROR_URL
-          value: >-
-            https://nexus-sandbox.apps.rosa-tlcj5.ynms.p1.openshiftapps.com/repository/maven-public
         - name: SERVER_USER
           value: ''
         - name: SERVER_PASSWORD
@@ -105,7 +106,7 @@ spec:
         - name: VERSION
           value: latest
       runAfter:
-        - maven
+        - create-roxsecrets
       taskRef:
         kind: ClusterTask
         name: openshift-client
@@ -119,7 +120,7 @@ spec:
         - name: VERSION
           value: latest
       runAfter:
-        - maven
+        - create-roxsecrets
       taskRef:
         kind: ClusterTask
         name: openshift-client
@@ -141,7 +142,7 @@ spec:
         - name: insecure-skip-tls-verify
           value: 'true'
       runAfter:
-        - maven
+        - create-roxsecrets
       taskRef:
         kind: Task
         name: rhacs-deployment-check
@@ -189,24 +190,6 @@ spec:
       taskRef:
         kind: ClusterTask
         name: openshift-client
-    - name: image-scan
-      params:
-        - name: rox_central_endpoint
-          value: roxsecrets
-        - name: rox_api_token
-          value: roxsecrets
-        - name: image
-          value: >-
-            nexus-docker-https-sandbox.apps.rosa-tlcj5.ynms.p1.openshiftapps.com/java-sample:latest
-        - name: output_format
-          value: table
-        - name: insecure-skip-tls-verify
-          value: 'true'
-      runAfter:
-        - build
-      taskRef:
-        kind: Task
-        name: stackrox-image-scan
     - name: image-check
       params:
         - name: rox_central_endpoint
@@ -214,12 +197,11 @@ spec:
         - name: rox_api_token
           value: roxsecrets
         - name: image
-          value: >-
-            nexus-docker-https-sandbox.apps.rosa-tlcj5.ynms.p1.openshiftapps.com/java-sample:latest
+          value: 'java-sample:latest'
         - name: insecure-skip-tls-verify
           value: 'true'
       runAfter:
-        - image-scan
+        - build
       taskRef:
         kind: Task
         name: stackrox-image-check
@@ -228,5 +210,30 @@ spec:
           operator: notin
           values:
             - 'true'
+    - name: delete-roxsecrets
+      params:
+        - name: SCRIPT
+          value: oc delete secret roxsecrets -n sandbox
+        - name: VERSION
+          value: latest
+      runAfter:
+        - maven
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+    - name: create-roxsecrets
+      params:
+        - name: SCRIPT
+          value: >-
+            oc create secret generic roxsecrets -n sandbox
+            --from-literal=rox_api_token=$(params.acs_api_token)
+            --from-literal=rox_central_endpoint=$(params.acs_api_url)
+        - name: VERSION
+          value: latest
+      runAfter:
+        - delete-roxsecrets
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
   workspaces:
     - name: workspace
