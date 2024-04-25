@@ -22,8 +22,5 @@ jobs:
       run: |
           curl --insecure -X POST -H "Content-Type: application/json" -d '{"key": "value"}' ${{ secrets.OCP_TEKTON_WEBHOOK_URL }}
 
-    - name: Delete roxsecrets
-      run: oc delete secret roxsecrets -n sandbox
-
     - name: Logout from Openshift
       run: oc logout
