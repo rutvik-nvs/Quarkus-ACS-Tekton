@@ -1,0 +1,20 @@
+name: Tekton Build
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI
+# or API.
+on:
+  workflow_dispatch:
+
+jobs:
+  trigger-tekton-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Trigger Tekton Pipeline
+      run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"acs_token": "${{ secrets.RHACS_API_TOKEN }}", "acs_url": "${{ secrets.RHACS_API_URL }}"}' \
+            ${{ secrets.OCP_TEKTON_WEBHOOK_URL }}
+      env:
+          RHACS_API_TOKEN: ${{ secrets.RHACS_API_TOKEN }}
+          RHACS_API_URL: ${{ secrets.RHACS_API_URL }}
