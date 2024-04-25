@@ -9,13 +9,23 @@ jobs:
   trigger-tekton-pipeline:
     runs-on: ubuntu-latest
     steps:
+    - name: Set up OpenShift CLI
+      uses: redhat-actions/oc-setup@v1
+      with:
+        version: 'latest'
+
+    - name: Login to Openshift
+      run: oc login ${{ secrets.OCP_API_URL }} -u ${{ secrets.OCP_API_URL }} -p ${{ secrets.OCP_API_URL }}
+
+    - name: Create roxsecrets
+      run: oc create secret generic roxsecrets -n sandbox --dry-run=client -o yaml --from-literal=rox_api_token=${{ secrets.RHACS_API_TOKEN }} --from-literal=rox_central_endpoint=${{ secrets.RHACS_API_URL }} | oc apply -f -
+
     - name: Trigger Tekton Pipeline
       run: |
-          curl --insecure -X POST \
-            -H "Content-Type: application/json" \
-            -d '{"acs_token": "${{ secrets.RHACS_API_TOKEN }}", "acs_url": "${{ secrets.RHACS_API_URL }}"}' \
-            ${{ secrets.OCP_TEKTON_WEBHOOK_URL }}
-      env:
-          RHACS_API_TOKEN: ${{ secrets.RHACS_API_TOKEN }}
-          RHACS_API_URL: ${{ secrets.RHACS_API_URL }}
-          OCP_TEKTON_WEBHOOK_URL: ${{ secrets.OCP_TEKTON_WEBHOOK_URL }}
+          curl --insecure -X POST -H "Content-Type: application/json" -d '{"key": "value"}' ${{ secrets.OCP_TEKTON_WEBHOOK_URL }}
+
+    - name: Delete roxsecrets
+      run: oc delete secret roxsecrets -n sandbox
+
+    - name: Logout from Openshift
+      run: oc logout
