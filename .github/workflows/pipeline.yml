@@ -17,18 +17,15 @@ jobs:
         tar xvzf tkn-linux-amd64-0.19.1.tar.gz -C /usr/local/bin tkn
 
     - name: Login to Openshift
-      run: oc login ${{ secrets.OCP_API_URL }} -u ${{ secrets.OCP_API_USERNAME }} -p ${{ secrets.OCP_API_PASSWORD }} --insecure-skip-tls-verify
+      run: |
+        oc login ${{ secrets.OCP_API_URL }} -u ${{ secrets.OCP_API_USERNAME }} -p ${{ secrets.OCP_API_PASSWORD }} --insecure-skip-tls-verify
+        oc project sandbox
 
     - name: Create roxsecrets
       run: oc create secret generic roxsecrets -n sandbox --dry-run=client -o yaml --from-literal=rox_api_token=${{ secrets.RHACS_API_TOKEN }} --from-literal=rox_central_endpoint=${{ secrets.RHACS_API_URL }} | oc apply -f -
 
     - name: Trigger Tekton Pipeline
-      run: |
-          tkn start pipeline s2i-build-scan-deploy -w name=workspace,claimName=tekton-workspace -n sandbox --showlog
-
-    # - name: Trigger Tekton Pipeline
-    #   run: |
-    #       curl --insecure -X POST -H "Content-Type: application/json" -d '{"key": "value"}' ${{ secrets.OCP_TEKTON_WEBHOOK_URL }}
+      run: tkn start pipeline s2i-build-scan-deploy --showlog -w name=workspace,claimName=tekton-workspace
 
     - name: Logout from Openshift
       run: oc logout
