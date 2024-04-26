@@ -1,7 +1,6 @@
 name: Tekton Build
 
-# Controls when the action will run. Workflow runs when manually triggered using the UI
-# or API.
+# Controls when the action will run. Workflow runs when manually triggered using the UI or API
 on:
   workflow_dispatch:
 
@@ -12,6 +11,9 @@ jobs:
     - name: Setup Openshift CLI
       uses: redhat-actions/oc-installer@v1
 
+    - name: Install Tekton CLI
+      uses: jerop/tkn@v0.2.0
+
     - name: Login to Openshift
       run: oc login ${{ secrets.OCP_API_URL }} -u ${{ secrets.OCP_API_USERNAME }} -p ${{ secrets.OCP_API_PASSWORD }} --insecure-skip-tls-verify
 
@@ -20,7 +22,11 @@ jobs:
 
     - name: Trigger Tekton Pipeline
       run: |
-          curl --insecure -X POST -H "Content-Type: application/json" -d '{"key": "value"}' ${{ secrets.OCP_TEKTON_WEBHOOK_URL }}
+          tkn start pipeline s2i-build-scan-deploy -w name=workspace,claimName=tekton-workspace -n sandbox --showlog
+
+    # - name: Trigger Tekton Pipeline
+    #   run: |
+    #       curl --insecure -X POST -H "Content-Type: application/json" -d '{"key": "value"}' ${{ secrets.OCP_TEKTON_WEBHOOK_URL }}
 
     - name: Logout from Openshift
       run: oc logout
