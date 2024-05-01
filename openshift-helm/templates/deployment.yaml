@@ -1,0 +1,32 @@
+kind: DeploymentConfig
+apiVersion: apps.openshift.io/v1
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+  selector:
+    app: {{ .Values.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}
+    spec:
+      imagePullSecrets:
+        - name: github-package
+      containers:
+        - name: container
+          image: {{ .Values.image_url }}:{{ .Values.image_version }}
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+  strategy:
+    type: Rolling
+    rollingParameters:
+      timeoutSeconds: 600
+      updatePeriodSeconds: 1
+      intervalSeconds: 1
+      maxSurge: 25%
+      maxUnavailable: 25%
+  triggers:
+    - type: Generic
