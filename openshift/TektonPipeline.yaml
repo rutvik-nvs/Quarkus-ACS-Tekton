@@ -4,6 +4,16 @@ metadata:
   name: s2i-build-scan-deploy
   namespace: sandbox
 spec:
+  finally:
+    - name: delete-roxsecrets
+      params:
+        - name: SCRIPT
+          value: oc delete secret roxsecrets -n sandbox
+        - name: VERSION
+          value: latest
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
   params:
     - default: 'https://github.com/rutvik-nvs/Quarkus-ACS-Tekton.git'
       description: git repository url to checkout the source code from
@@ -13,13 +23,9 @@ spec:
       description: repository revision to checkout
       name: revision
       type: string
-    - default: 'false'
+    - default: 'true'
       description: set to true to skip image-check stage
       name: skip_image_check
-      type: string
-    - name: acs_api_token
-      type: string
-    - name: acs_api_url
       type: string
   tasks:
     - name: git-clone
@@ -86,9 +92,12 @@ spec:
         - name: PROXY_NON_PROXY_HOSTS
           value: ''
         - name: PROXY_PROTOCOL
-          value: http
+          value: ''
         - name: CONTEXT_DIR
           value: .
+        - name: MAVEN_MIRROR_URL
+          value: >-
+            http://nexus-sandbox.apps.nvs.ocp.nvsconsulting.io/repository/maven-public
       runAfter:
         - git-clone
       taskRef:
@@ -99,70 +108,6 @@ spec:
           workspace: workspace
         - name: maven-settings
           workspace: workspace
-    - name: add-image-stream
-      params:
-        - name: SCRIPT
-          value: oc apply -f openshift/ImageStream.yaml
-        - name: VERSION
-          value: latest
-      runAfter:
-        - create-roxsecrets
-      taskRef:
-        kind: ClusterTask
-        name: openshift-client
-      workspaces:
-        - name: manifest-dir
-          workspace: workspace
-    - name: add-build-config
-      params:
-        - name: SCRIPT
-          value: oc apply -f openshift/BuildConfig.yaml
-        - name: VERSION
-          value: latest
-      runAfter:
-        - create-roxsecrets
-      taskRef:
-        kind: ClusterTask
-        name: openshift-client
-      workspaces:
-        - name: manifest-dir
-          workspace: workspace
-    - name: deployment-check
-      params:
-        - name: rox_central_endpoint
-          value: roxsecrets
-        - name: rox_api_token
-          value: roxsecrets
-        - name: rox_image
-          value: 'quay.io/stackrox-io/roxctl:3.71.0'
-        - name: deployment
-          value: $(workspaces.source.path)/openshift/DeploymentConfig.yaml
-        - name: output_format
-          value: table
-        - name: insecure-skip-tls-verify
-          value: 'true'
-      runAfter:
-        - create-roxsecrets
-      taskRef:
-        kind: Task
-        name: rhacs-deployment-check
-      workspaces:
-        - name: source
-          workspace: workspace
-    - name: add-deployment-config
-      params:
-        - name: SCRIPT
-          value: oc apply -f openshift/DeploymentConfig.yaml
-        - name: VERSION
-          value: latest
-      runAfter:
-        - deployment-check
-      taskRef:
-        kind: ClusterTask
-        name: openshift-client
-      workspaces:
-        - name: manifest-dir
-          workspace: workspace
     - name: build
       params:
         - name: SCRIPT
@@ -170,26 +115,13 @@ spec:
         - name: VERSION
           value: latest
       runAfter:
-        - add-build-config
-        - add-deployment-config
-        - add-image-stream
+        - argocd-sync
       taskRef:
         kind: ClusterTask
         name: openshift-client
       workspaces:
         - name: manifest-dir
           workspace: workspace
-    - name: deploy
-      params:
-        - name: SCRIPT
-          value: oc rollout latest dc/java-sample
-        - name: VERSION
-          value: latest
-      runAfter:
-        - image-check
-      taskRef:
-        kind: ClusterTask
-        name: openshift-client
     - name: image-check
       params:
         - name: rox_central_endpoint
@@ -197,11 +129,11 @@ spec:
         - name: rox_api_token
           value: roxsecrets
         - name: image
-          value: 'java-sample:latest'
+          value: 'ghcr.io/rutvik-nvs/java-sample:latest'
         - name: insecure-skip-tls-verify
           value: 'true'
       runAfter:
-        - build
+        - image-scan
       taskRef:
         kind: Task
         name: stackrox-image-check
@@ -210,30 +142,37 @@ spec:
           operator: notin
           values:
             - 'true'
-    - name: delete-roxsecrets
+    - name: image-scan
       params:
-        - name: SCRIPT
-          value: oc delete secret roxsecrets -n sandbox
-        - name: VERSION
-          value: latest
+        - name: rox_central_endpoint
+          value: roxsecrets
+        - name: rox_api_token
+          value: roxsecrets
+        - name: image
+          value: 'ghcr.io/rutvik-nvs/java-sample:latest'
+        - name: output_format
+          value: json
+        - name: insecure-skip-tls-verify
+          value: 'true'
+      runAfter:
+        - build
+      taskRef:
+        kind: Task
+        name: stackrox-image-scan
+    - name: argocd-sync
+      params:
+        - name: application-name
+          value: java-sample
+        - name: revision
+          value: HEAD
+        - name: flags
+          value: '--'
+        - name: argocd-version
+          value: v2.2.2
       runAfter:
         - maven
       taskRef:
         kind: ClusterTask
-        name: openshift-client
-    - name: create-roxsecrets
-      params:
-        - name: SCRIPT
-          value: >-
-            oc create secret generic roxsecrets -n sandbox
-            --from-literal=rox_api_token=$(params.acs_api_token)
-            --from-literal=rox_central_endpoint=$(params.acs_api_url)
-        - name: VERSION
-          value: latest
-      runAfter:
-        - delete-roxsecrets
-      taskRef:
-        kind: ClusterTask
-        name: openshift-client
+        name: argocd-task-sync-and-wait
   workspaces:
     - name: workspace
