@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: java-sample
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/rutvik-nvs/Quarkus-ACS-Tekton.git'
+    path: tekton
+    targetRevision: HEAD
+  destination:
+    name: in-cluster
+    namespace: sandbox
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

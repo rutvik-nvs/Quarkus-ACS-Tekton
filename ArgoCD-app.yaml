@@ -6,9 +6,13 @@ metadata:
 spec:
   project: default
   source:
-    path: openshift-helm
     repoURL: 'https://github.com/rutvik-nvs/Quarkus-ACS-Tekton.git'
+    path: openshift-helm
     targetRevision: HEAD
   destination:
     name: in-cluster
     namespace: sandbox
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
