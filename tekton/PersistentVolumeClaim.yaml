@@ -1,0 +1,13 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: tekton-workspace
+  namespace: sandbox
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi
+  storageClassName: gp3-csi
+  volumeMode: Filesystem
