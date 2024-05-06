@@ -184,7 +184,7 @@ spec:
         - name: config_file_url
           value: ''
         - name: config_file_path
-          value: ''
+          value: '.'
         - name: manifest
           value: ./openshift-helm/
         - name: includelist
