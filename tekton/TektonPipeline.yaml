@@ -174,5 +174,31 @@ spec:
       taskRef:
         kind: ClusterTask
         name: argocd-task-sync-and-wait
+    - name: kube-lint-chart
+      runAfter:
+        - build
+      taskRef:
+        kind: Task
+        name: kube-linter
+      params:
+        - name: config_file_url
+          value: ''
+        - name: config_file_path
+          value: ''
+        - name: manifest
+          value: ./openshift-helm/
+        - name: includelist
+          value: ''
+        - name: excludelist
+          value: ''
+        - name: default_option
+          value: ''
+        - name: output_format
+          value: json
+        - name: args
+          value: []
+      workspaces:
+        - name: source
+          workspace: workspace
   workspaces:
     - name: workspace
