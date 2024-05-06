@@ -155,7 +155,7 @@ spec:
         - name: insecure-skip-tls-verify
           value: 'true'
       runAfter:
-        - build
+        - kube-lint-chart
       taskRef:
         kind: Task
         name: stackrox-image-scan
