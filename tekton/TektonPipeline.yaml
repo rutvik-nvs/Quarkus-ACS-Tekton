@@ -184,7 +184,7 @@ spec:
         - name: config_file_url
           value: ''
         - name: config_file_path
-          value: '.'
+          value: './kube-linter.yaml'
         - name: manifest
           value: ./openshift-helm/
         - name: includelist
