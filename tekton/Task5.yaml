@@ -1,0 +1,32 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: update-helm-values-file
+  namespace: sandbox
+spec:
+  params:
+    - default: '/path/to/values.yaml'
+      description: path where the values file is stored.
+      name: values_file_path
+      type: string
+    - default: ''
+      description: variable to be updated.
+      name: variable
+      type: string
+    - default: ''
+      description: new value.
+      name: value
+      type: string
+  steps:
+    - image: 'registry.access.redhat.com/ubi8/ubi-minimal:8.2'
+      name: update-values.yaml
+      resources: {}
+      script: |
+        #!/usr/bin/env bash
+        set -e
+        
+        sed -i "s/$(params.variable):.*/$(params.variable): $(params.value)/" $(params.values_file_path)
+      workingDir: $(workspaces.source.path)
+  workspaces:
+    - description: A workspace that contains fetched git repo.
+      name: source
