@@ -220,7 +220,7 @@ spec:
         - name: argocd-version
           value: v2.2.2
       runAfter:
-        - git-commit
+        - git-commit-build
       taskRef:
         kind: ClusterTask
         name: argocd-task-sync-and-wait
