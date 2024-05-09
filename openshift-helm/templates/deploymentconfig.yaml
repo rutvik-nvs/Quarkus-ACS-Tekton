@@ -21,4 +21,4 @@ spec:
             - containerPort: 8080
               protocol: TCP
   triggers:
-    - type: Generic
+    - type: ConfigChange
