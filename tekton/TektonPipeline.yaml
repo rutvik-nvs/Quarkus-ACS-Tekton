@@ -305,20 +305,5 @@ spec:
       workspaces:
         - name: source
           workspace: workspace
-    - name: argocd-sync-deploy
-      params:
-        - name: application-name
-          value: java-sample
-        - name: revision
-          value: HEAD
-        - name: flags
-          value: '--'
-        - name: argocd-version
-          value: v2.2.2
-      runAfter:
-        - git-commit-deploy
-      taskRef:
-        kind: ClusterTask
-        name: argocd-task-sync-and-wait
   workspaces:
     - name: workspace
