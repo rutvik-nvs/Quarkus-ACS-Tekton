@@ -19,7 +19,7 @@ spec:
       type: string
   steps:
     - image: 'registry.access.redhat.com/ubi8/ubi-minimal:8.2'
-      name: update-values.yaml
+      name: update-values
       resources: {}
       script: |
         #!/usr/bin/env bash

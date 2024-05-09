@@ -16,7 +16,7 @@ spec:
         - name: github-package
       containers:
         - name: container
-          image: {{ .Values.image_url }}:{{ .Values.image_version }}
+          image: {{ .Values.image_url }}:{{ .Values.deploy_version }}
           ports:
             - containerPort: 8080
               protocol: TCP

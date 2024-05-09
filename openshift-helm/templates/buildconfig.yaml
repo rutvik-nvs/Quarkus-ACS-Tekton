@@ -16,6 +16,6 @@ spec:
     to:
       kind: DockerImage
       name: >-
-        {{ .Values.image_url }}:{{ .Values.image_version }}
+        {{ .Values.image_url }}:{{ .Values.build_version }}
     pushSecret:
       name: github-package
