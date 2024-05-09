@@ -63,6 +63,8 @@ spec:
             registry.redhat.io/openshift-pipelines/pipelines-git-init-rhel8@sha256:fb10f18e6b984584c114a30a5201a0426820d292e9efc982b2cdfed71a2a6930
         - name: userHome
           value: /home/git
+      runAfter:
+        - generate-build-id
       taskRef:
         kind: ClusterTask
         name: git-clone
@@ -108,6 +110,54 @@ spec:
           workspace: workspace
         - name: maven-settings
           workspace: workspace
+    - name: update-build-manifest
+      runAfter:
+        - maven
+      taskRef:
+        kind: Task
+        name: yq
+      params:
+        - name: SCRIPT
+          value: yq e -i '.build_version = "$(tasks.generate-build-id.results.build-id)"' /openshift-helm/values.yaml
+        - name: image
+          value: >-
+            docker.io/mikefarah/yq:4.27.5@sha256:2be3626ed633fbe1fc33ee9343a1256a6be53334412b2251b9a859f8c145bb53
+        - name: files
+          value: []
+        - name: expression
+          value: ''
+      workspaces:
+        - name: source
+          workspace: workspace
+    - name: git-commit-build
+      params:
+        - name: BASE_IMAGE
+          value: >-
+            cgr.dev/chainguard/git:root-2.39@sha256:7759f87050dd8bacabe61354d75ccd7f864d6b6f8ec42697db7159eccd491139
+        - name: GIT_USER_NAME
+          value: Tekton
+        - name: GIT_USER_EMAIL
+          value: tekton.demo@nvsconsulting.io
+        - name: GIT_SCRIPT
+          value: |-
+            git config --global --add safe.directory /workspace/source && \
+            git pull origin master && \
+            git checkout master && \
+            git add --all && \
+            git commit -m "Bump build version to $(tasks.generate-build-id.results.build-id)" && \
+            git push -u origin master
+        - name: USER_HOME
+          value: /root
+        - name: VERBOSE
+          value: 'true'
+      runAfter:
+        - update-build-manifest
+      taskRef:
+        kind: ClusterTask
+        name: git-cli
+      workspaces:
+        - name: source
+          workspace: workspace
     - name: build
       params:
         - name: SCRIPT
@@ -115,7 +165,7 @@ spec:
         - name: VERSION
           value: latest
       runAfter:
-        - argocd-sync
+        - argocd-sync-build
       taskRef:
         kind: ClusterTask
         name: openshift-client
@@ -159,7 +209,7 @@ spec:
       taskRef:
         kind: Task
         name: stackrox-image-scan
-    - name: argocd-sync
+    - name: argocd-sync-build
       params:
         - name: application-name
           value: java-sample
@@ -170,7 +220,7 @@ spec:
         - name: argocd-version
           value: v2.2.2
       runAfter:
-        - maven
+        - git-commit
       taskRef:
         kind: ClusterTask
         name: argocd-task-sync-and-wait
@@ -200,5 +250,78 @@ spec:
       workspaces:
         - name: source
           workspace: workspace
+    - name: generate-build-id
+      taskRef:
+        kind: Task
+        name: generate-build-id
+      params:
+        - name: base-version
+          value: '1.0'
+    - name: update-deploy-manifest
+      runAfter:
+        - image-check
+      taskRef:
+        kind: Task
+        name: yq
+      params:
+        - name: SCRIPT
+          value: >-
+            yq e -i '.deploy_version =
+            "$(tasks.generate-build-id.results.build-id)"'
+            /openshift-helm/values.yaml
+        - name: image
+          value: >-
+            docker.io/mikefarah/yq:4.27.5@sha256:2be3626ed633fbe1fc33ee9343a1256a6be53334412b2251b9a859f8c145bb53
+        - name: files
+          value: []
+        - name: expression
+          value: ''
+      workspaces:
+        - name: source
+          workspace: workspace
+    - name: git-commit-deploy
+      params:
+        - name: BASE_IMAGE
+          value: >-
+            cgr.dev/chainguard/git:root-2.39@sha256:7759f87050dd8bacabe61354d75ccd7f864d6b6f8ec42697db7159eccd491139
+        - name: GIT_USER_NAME
+          value: Tekton
+        - name: GIT_USER_EMAIL
+          value: tekton.demo@nvsconsulting.io
+        - name: GIT_SCRIPT
+          value: |-
+            git config --global --add safe.directory /workspace/source && \
+            git pull origin master && \
+            git checkout master && \
+            git add --all && \
+            git commit -m "Bump deploy version to $(tasks.generate-build-id.results.build-id)" && \
+            git push -u origin master
+        - name: USER_HOME
+          value: /root
+        - name: VERBOSE
+          value: 'true'
+      runAfter:
+        - update-deploy-manifest
+      taskRef:
+        kind: ClusterTask
+        name: git-cli
+      workspaces:
+        - name: source
+          workspace: workspace
+    - name: argocd-sync-deploy
+      params:
+        - name: application-name
+          value: java-sample
+        - name: revision
+          value: HEAD
+        - name: flags
+          value: '--'
+        - name: argocd-version
+          value: v2.2.2
+      runAfter:
+        - git-commit-deploy
+      taskRef:
+        kind: ClusterTask
+        name: argocd-task-sync-and-wait
   workspaces:
     - name: workspace
