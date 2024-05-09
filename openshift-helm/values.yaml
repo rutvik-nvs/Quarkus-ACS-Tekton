@@ -2,5 +2,5 @@ name: java-sample
 namespace: sandbox
 source_url: https://github.com/rutvik-nvs/Quarkus-ACS-Tekton.git
 image_url: ghcr.io/rutvik-nvs/java-sample
-build_version: 1.0-20240509-183836
+build_version: 1.0-20240509-185330
 deploy_version: 1.0-20240509-183836
